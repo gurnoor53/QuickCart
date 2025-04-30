@@ -1,5 +1,5 @@
 import { serve } from "inngest/next";
-import { inngest } from "../../../config/inngest";
+import { inngest } from "../../../config/inngest/functions";
 import {
   syncUserCreation,
   syncUserUpdate,
@@ -7,21 +7,15 @@ import {
 } from "../../../config/inngest/functions";
 
 // Serve the functions with Inngest
-export const { GET, POST, PUT } = serve({
+export const { GET, POST } = serve({
   client: inngest,
   functions: [
     syncUserCreation,
     syncUserUpdate,
     syncUserDeletion,
   ],
+  // Add middleware to handle CORS and other headers
   middleware: {
-    onError: (error) => {
-      console.error("Inngest error:", error);
-      return {
-        status: 500,
-        body: { error: "Internal server error" }
-      };
-    }
-  }
-  
+    cors: true,
+  },
 });
