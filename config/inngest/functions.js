@@ -5,7 +5,6 @@ import connectDB from "../db";
 // Create a client to send and receive events
 export const inngest = new Inngest({ id: "quickcart-next" });
 
-
 // inngest function to save user data to database
 export const syncUserCreation = inngest.createFunction(
     {
@@ -15,16 +14,26 @@ export const syncUserCreation = inngest.createFunction(
         event: 'clerk/user.created',
     },
     async ({ event }) => {
-        const { id, emailAddresses, firstName, lastName, image_url } = event.data;
-        const userData = {
-            _id: id,
-            email: emailAddresses[0].emailAddress,
-            name: firstName + " " + lastName,
-            imageUrl: image_url,
-        }
+        try {
+            const { id, emailAddresses, firstName, lastName, image_url } = event.data;
+            
+            if (!id || !emailAddresses?.[0]?.emailAddress) {
+                throw new Error('Missing required user data');
+            }
 
-         await connectDB();
-        await User.create(userData);
+            const userData = {
+                _id: id,
+                email: emailAddresses[0].emailAddress,
+                name: `${firstName || ''} ${lastName || ''}`.trim() || 'Anonymous',
+                imageUrl: image_url || '',
+            }
+
+            await connectDB();
+            await User.create(userData);
+        } catch (error) {
+            console.error('Error in syncUserCreation:', error);
+            throw error;
+        }
     }
 )
 
@@ -37,15 +46,25 @@ export const syncUserUpdate = inngest.createFunction(
         event: 'clerk/user.updated',
     },
     async ({ event }) => {
-        const { id, emailAddresses, firstName, lastName, image_url } = event.data;
-        const userData = {
-            email: emailAddresses[0].emailAddress,
-            name: firstName + " " + lastName,
-            imageUrl: image_url,
-        }
+        try {
+            const { id, emailAddresses, firstName, lastName, image_url } = event.data;
+            
+            if (!id) {
+                throw new Error('Missing user ID');
+            }
 
-        await connectDB();
-        await User.findByIdAndUpdate(id, userData, )
+            const userData = {
+                email: emailAddresses?.[0]?.emailAddress,
+                name: `${firstName || ''} ${lastName || ''}`.trim() || 'Anonymous',
+                imageUrl: image_url || '',
+            }
+
+            await connectDB();
+            await User.findByIdAndUpdate(id, userData, { new: true });
+        } catch (error) {
+            console.error('Error in syncUserUpdate:', error);
+            throw error;
+        }
     }
 )
 
@@ -58,8 +77,18 @@ export const syncUserDeletion = inngest.createFunction(
         event: 'clerk/user.deleted',
     },
     async ({ event }) => {
-        const { id } = event.data;
-        await connectDB();
-        await User.findByIdAndDelete(id);
+        try {
+            const { id } = event.data;
+            
+            if (!id) {
+                throw new Error('Missing user ID');
+            }
+
+            await connectDB();
+            await User.findByIdAndDelete(id);
+        } catch (error) {
+            console.error('Error in syncUserDeletion:', error);
+            throw error;
+        }
     }
 ) 
